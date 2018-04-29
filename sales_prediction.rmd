@@ -1,0 +1,418 @@
+---
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+# Big Mart Sales Prediction Exploration 
+### by Shuyu Wang
+
+Link for the dataset:
+  https://www.kaggle.com/devashish0507/big-mart-sales-prediction/data
+  
+This is a dataset created by the data scientists at BigMart. \
+They have collected 2013 sales data for 1559 products across 10 stores in \
+different cities. Also, certain attributes of each product and store have \
+been defined. The aim for them was to build a predictive model and find out \
+the sales of each product at a particular store.\
+Here I use this dataset to do a data exploration using R.
+
+
+## Load data to start
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(dplyr)
+library(ggplot2)
+library(knitr)
+```
+
+
+### Load data and have a look
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+traindata <- read.csv('train_data.csv', header = TRUE)
+testdata <- read.csv('test_data.csv', header = TRUE)
+# head(traindata)
+summary(traindata)
+```
+
+
+
+## Check Missing Values
+```{r echo=FALSE, message=FALSE, warning=FALSE} 
+table(is.na(traindata))
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+colSums(is.na(traindata))
+```
+
+## Data Visualization
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+require(ggplot2)
+```
+
+
+### Univariagte Plots Section
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(aes(x = Item_Weight), data = traindata) + 
+  geom_histogram(binwidth = 0.3, color = 'blue') + 
+  scale_x_continuous(name = 'Item_Weight (kg)')
+```
+
+From this plot we can see that the weight of the items are distributed pretty equally.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(aes(x = Item_Outlet_Sales), data = traindata) + 
+  geom_histogram(color = 'blue') + 
+  scale_x_continuous(name = 'Item_Outlet_Sales ($)')
+```
+
+This is a left skew distribution
+
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(aes(x = Item_Fat_Content), data = traindata) + 
+  geom_bar()
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+traindata$Item_Fat_Content <- gsub('lf', 'Low Fat', traindata$Item_Fat_Content)
+traindata$Item_Fat_Content <- gsub('LF', 'Low Fat', traindata$Item_Fat_Content)
+traindata$Item_Fat_Content <- gsub('low fat', 'Low Fat', traindata$Item_Fat_Content)
+traindata$Item_Fat_Content <- gsub('reg', 'Regular', traindata$Item_Fat_Content)
+ggplot(aes(x = Item_Fat_Content), data = traindata) + geom_bar()
+```
+
+After cleaning the 'LF', 'low fat', 'reg', the data looks much better
+From this bar plot we can see that the Low Fat products is the bigger part of the sales comparing with Regular fat
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(aes(x = Item_Type), data = traindata) + geom_bar() + 
+  theme(axis.text.x = element_text(angle = -30, vjust = 0.5, color = "black"))
+```
+
+We know that Fruits and Vegetables and Snack Foods are the first two \
+categories in all sales. Maybe people are thinking that, eating lots of\
+healthy food like fruits and vegetables gives them the permission to eat \
+some snacks. 
+
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(aes(x = Outlet_Type), data = traindata) + geom_bar()
+```
+
+The type 1 supermarket is the main form of BigMart, over 5000 places are type 1 supermarket.\
+Others are all around 1000 stores.
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(aes(x = Item_MRP), data = traindata) + 
+  geom_histogram(aes(y = ..density..), col = 'purple', fill = 'light blue', alpha = 0.2) + 
+  geom_density(alpha = 0.5, fill='light yellow', col=2) + 
+  scale_x_continuous(name='Item_MRP($)')
+```
+
+From this plot we can have a sense of how the price distributed. We see that\
+there are several obvious price range in this distribution. \
+Sub 100, around 100, sub 200, and above 200 are the four price range for the \
+products where most of the them landed in around 100 and sub 200 price range.
+
+
+
+### Univariate Analysis
+
+#### What is the structure of your dataset?
+
+There are 5,681 records in the dataset with \
+12 features(Item_Identifier, Item_Weight, Item_Fat_Content,\
+Item_Visibility, Item_Type, Item_MRP, Outlet_Identifier, \
+Outlet_Establishment_Year, Outlet_Size, Outlet_Location_Type,\
+Outlet_Type and Item_Outlet_Sales).
+
+Item_Identifier and Outlet_Identifier are id columns. \
+We are not getting too much information out of them.
+
+Other observations:
+
+  * The median and mean value of Item_Weight are very close
+  * Low Fat items are almost twice as much as the Regular items
+  * Fruit and Snack are leading the Item_Type column
+
+#### What is/are the main feature(s) of interest in your dataset?
+Outlet_Size, Outlet_Location_Type
+Item_Outlet_Sales
+I think that the location of the outlet will influence the\
+sales a lot since the location determine the demographic of\
+the people who are going to that perticular outlet. Certain\
+people from certain area are very likely to have similar purchasing habit.
+
+#### What other features in the dataset do you think will help \
+support your investigation into your feature(s) of interest?
+
+Item_Type and Item_MRP might help since they have such a impact on the sales.
+
+#### Did you create any new variables from existing variables in the dataset?
+
+No
+
+#### Of the features you investigated, were there any unusual distributions? \
+Did you perform any operations on the data to tidy, adjust, or change the form \
+of the data? If so, why did you do this?
+
+I cleaned the Item_Fat_Content column, changed the 'LF' and 'low fat' to 'Low Fat'\
+and changed 'reg' to 'Regular' to make the data more clean.\
+Since all 'LF' and 'low fat' are the same as 'Low Fat'
+
+
+### Bivariate Plots Section
+
+#### Item Weight vs. Sale
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(traindata, aes(x=Item_Weight, y =Item_Outlet_Sales)) + 
+  geom_point(alpha = 0.2, size=1.5, colour="dark green") + 
+  scale_x_continuous(name = 'Item_Weight (kg)') + 
+  scale_y_continuous(name = 'Item_Outlet_Sales ($)')
+```
+
+no specific relationship between item weight and sales
+
+
+#### Item Fat Content and Item Type
+```{r warning=FALSE, echo=FALSE, message=FALSE}
+ggplot(data = traindata, aes(Item_Fat_Content)) + 
+  geom_bar(stat = 'count') + 
+  facet_wrap(~Item_Type) + 
+  theme(axis.text.x = element_text(angle = 40,vjust = 0.5, color="navy")) 
+```
+
+We can see that Regular fat only win on the Meat category.\
+People are choosing low fat more almost on every category.
+
+
+#### Item Fat Content vs. Sale
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+require(plyr)
+traindata$Item_Fat_Content = revalue(traindata$Item_Fat_Content, 
+                                c("LF"="Low Fat", 
+                                  "low fat"="Low Fat",
+                                  "reg"="Regular"))
+# levels(traindata$Item_Fat_Content)
+ggplot(traindata, aes(x=Item_Outlet_Sales)) +
+  geom_histogram(aes(fill=Item_Fat_Content), bins=50, colour="grey") +
+  scale_x_continuous(name = 'Item_Outlet_Sales ($)') + 
+  facet_grid(Item_Fat_Content~., scales="free")
+```
+
+no specific relationship between item fat content and sales
+
+#### Item_Visibility vs Sale
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(traindata, aes(x=Item_Visibility, y =Item_Outlet_Sales)) + 
+  scale_x_continuous(name = 'Item_Visibility (% area)') +
+  scale_y_continuous(name = 'Item_Outlet_Sales ($)') +
+  geom_point(alpha = 0.2, size = 1, color="dark blue") 
+```
+
+a very large amount of sales has been obtained \
+from products whose visibility is less than 0.2
+
+
+### Correlation between numerical features
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+library(PerformanceAnalytics)
+nums <- sapply(traindata, is.numeric)
+# numerical_data <- traindata[, numeric_data]
+num_data <- select_if(traindata, is.numeric)
+# head(num_data)
+chart.Correlation(num_data, histogram = TRUE)
+```
+
+From this correlation we can see that the Item_MRP has a pretty\
+strong correlation with the Item_Outlet_Sales. \
+The rest numerical columns are not heavily correlated.
+
+
+#### Item_Type vs Sale
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(traindata, aes(Item_Type, Item_Outlet_Sales)) + 
+  geom_bar(stat = "identity") +
+  scale_y_continuous(name='Item_Outlet_Sales ($)') +
+  theme(axis.text.x = element_text(angle = 40,vjust = 0.5, color="navy")) 
+```
+
+Fruits and Vegetables contribute to the highest amount of outlet sales.\
+This make sense considering the previous count plot which showed that\
+Fruits and Vegetables rank at the first place as well.
+
+
+#### Outlet Identifier vs. Sales
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(traindata, aes(Outlet_Identifier, Item_Outlet_Sales)) + 
+  geom_bar(stat = "identity", color = "purple") +
+  scale_y_continuous('Item_Outlet_Sales ($)') +
+  theme(axis.text.x = element_text(angle = 40, vjust = 0.5, color = "black")) 
+```
+
+The number 027 store contributed the largest amount of the sale.
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(data = traindata, aes(x = Outlet_Location_Type, y = Item_Outlet_Sales)) + 
+  geom_boxplot() + 
+  scale_y_continuous(name='Item_Outlet_Sales ($)') +
+  facet_wrap(~Outlet_Type)
+```
+
+## Multivariable Analysis
+
+### Relationship between Item_MRP and Sales at different outlet type 
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(data = traindata, aes(x = Item_MRP, y = Item_Outlet_Sales)) + 
+  geom_point(alpha = 0.2, color='deepskyblue3') + 
+  scale_x_continuous(name='Item_MRP ($)') +
+  scale_y_continuous(name='Item_Outlet_Sales ($)') +
+  facet_wrap(~Outlet_Type)
+```
+
+We can see that Item_MRP and Item_Outlet_Sales has a obvious \
+relationship among 3 types of supermarkets, but the relationship\
+is not very obvious in grocery store.
+
+
+### Relationship between Item_MRP and Sales at different outlet type 
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(data = traindata, aes(x = Item_Fat_Content, y = Item_Outlet_Sales)) + 
+  geom_boxplot() + facet_wrap(~Outlet_Location_Type) + 
+  facet_grid(Outlet_Location_Type~Outlet_Type) + 
+  scale_y_continuous(name='Item_Outlet_Sales ($)') +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, color = "black")) 
+```
+
+The very obvious observation is that there's only Tier 3 has all the types of outlet.\
+Both the low fat and regular sales in supermarket 3 and tier 3 are higher than others' sales.
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(data = traindata, 
+       aes(x = Item_Visibility, 
+           y = Item_Outlet_Sales, 
+           group = Outlet_Type, 
+           color=as.factor(Outlet_Type))) + 
+  geom_point(alpha = 0.2, position = position_jitter()) + 
+  scale_x_continuous(name='Item_Visibility (% area)') +
+  scale_y_continuous(name='Item_Outlet_Sales ($)') +
+  facet_wrap(~Outlet_Type)
+```
+
+We see that in grocery stores, item visibility almost doesn't affect sales at all,\
+whereas the in super market types, it seems like while the visibility go higher,\
+the sales is going down. But this trend is not very strong in all four types.\
+So it may safe to say that the visibility doesn't have a strong relationship with\
+sales.
+
+
+## Multivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the \
+investigation. Were there features that strengthened each other in terms of \
+looking at your feature(s) of interest?
+
+The visibility is not a very strong indictor in terms of the sales.\
+This is telling us that the products with high visibility are not going to sell\
+much better than those with lower visibility. So people know what they want \
+when they are going to this kind of place. I can imagine that people know they \
+need some paper towels, even though the chocalate has a very high visibility, \
+they are not going to buy it. They just went straight to the target.\
+On the contrary, I can imagine that when people go to shopping malls, they don't\
+really know what they want, and just look around, in this case, the product has \
+high visibility will have higher probability to draw their attention.
+
+### Were there any interesting or surprising interactions between features?
+
+Yes. Low fat products are not that popular among defferent situations, \
+such as locations, outlet types. So people are loving regular fat products.\
+Only supermarket type 1 has store in all three tiers,\
+so supermarket type 1 may be the most popular type among all the types. 
+
+
+
+## Final Plots and Summary
+
+#### Plot One
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+require(plyr)
+traindata$Item_Fat_Content = revalue(traindata$Item_Fat_Content, 
+                                c("LF"="Low Fat", 
+                                  "low fat"="Low Fat",
+                                  "reg"="Regular"))
+# levels(traindata$Item_Fat_Content)
+ggplot(traindata, aes(x=Item_Outlet_Sales)) +
+  geom_histogram(aes(fill=Item_Fat_Content), bins=50, colour="grey") +
+  scale_x_continuous(name='Item_Outlet_Sales($)') + 
+  facet_grid(Item_Fat_Content~., scales="free")
+```
+
+This plot shows that the Item_Outlet_Sales has similar \
+distribution between Low Fat and Regular. However the amout \
+is very different. The amount of Low Fat products peaks at 500,\
+whereas the regular products peaks around 300.\
+This plot shows that there's obvious difference on the surface \
+which is the number of products. But within each fat content, the pattern is similar.\
+This reflect that the structure of how people consume is similar with each fat content.
+
+#### Plot Two
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+library(PerformanceAnalytics)
+nums <- sapply(traindata, is.numeric)
+# numerical_data <- traindata[, numeric_data]
+num_data <- select_if(traindata, is.numeric)
+# head(num_data)
+chart.Correlation(num_data, histogram = TRUE)
+```
+
+This plot shows that the most correlated feature with Item_Outlet_Sales is Item_MRP,\
+among all other numerical features. \
+The information showed by this plot is very well aligned and very clear.\
+There are numbers giving a precise sense of how strong they are correlated,\
+besides, the plots are giving a general sense of how they correlated and their own distribution.
+
+#### Plot Three
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(data = traindata, aes(x = Item_MRP, y = Item_Outlet_Sales)) + 
+  geom_point(alpha = 0.2, color='coral1') +
+  scale_x_continuous(name='Item_MRP($)') + 
+  facet_wrap(~Outlet_Type)
+```
+
+This plot shows that the correlation between Item_MRP and Item_Outlet_Sales.\
+We can see that there's obvious positive correlation beteen \
+Item_MRP and Item_Outlet_Sales in three supermarket types, \
+however there's no obvious relationship between the two in grocery stores.\
+So that's on big thing to keep in mind that the strong correlation \
+in general does not mean that strong correlation in every categories.
+
+
+## Reflection
+This data set is pretty good. One thing I did is that \
+clean the Item_Fat_Content column to rename 'LF' and 'low fat' to 'Low Fat' \
+and 'reg' to 'Regular'. Then this column becomes much better. \
+We can see that the Item_Fat_Content has a obvious impact on sales from the various perspective.\
+The low fat products have a better sale than regular fat products.\
+One of my struggles is that during the multivariable analysis phase.\
+I tried many possible ways of combining variables and show them to look for insights.\
+However the results from many of the combination are not providing a very good insights.\
+Anlysis of some of the numerical columns went fairly well since I can do many plots with them,\
+such as histogram, bar plot, boxplot and so on.
+I thought locations are going to be a important factor to the sales,\
+but it turned out that location does not have that much of a impact on sales.\
+Maybe that's because people have convenient transportation methods to get to\
+the location of the outlet if they really need to purchse what they need. 
+What I think is generally useful for many data analysis use cases is that\
+plotting the correlation matrix is very important for getting to know my data.\
+The correlation matrix of the numerical data will tell you the story between features, \
+so that you can get an idea of how the features have influence on eahc other and how they\
+are going to impact on the models.
+
+
+
